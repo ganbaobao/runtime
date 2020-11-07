@@ -1,6 +1,5 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
 
 #if !defined(CONFIG_INTEGER) || !defined(CONFIG_STRING) || !defined(CONFIG_METHODSET)
 #error CONFIG_INTEGER, CONFIG_STRING, and CONFIG_METHODSET must be defined before including this file.
@@ -22,7 +21,9 @@ CONFIG_INTEGER(BreakOnDumpToken, W("BreakOnDumpToken"), 0xffffffff) // Breaks wh
                                                                     // particular token value.
 CONFIG_INTEGER(DebugBreakOnVerificationFailure, W("DebugBreakOnVerificationFailure"), 0) // Halts the jit on
                                                                                          // verification failure
-CONFIG_INTEGER(DiffableDasm, W("JitDiffableDasm"), 0)            // Make the disassembly diff-able
+CONFIG_INTEGER(DiffableDasm, W("JitDiffableDasm"), 0)          // Make the disassembly diff-able
+CONFIG_INTEGER(JitDasmWithAddress, W("JitDasmWithAddress"), 0) // Print the process address next to each instruction of
+                                                               // the disassembly
 CONFIG_INTEGER(DisplayLoopHoistStats, W("JitLoopHoistStats"), 0) // Display JIT loop hoisting statistics
 CONFIG_INTEGER(DisplayLsraStats, W("JitLsraStats"), 0)       // Display JIT Linear Scan Register Allocator statistics
 CONFIG_INTEGER(DumpJittedMethods, W("DumpJittedMethods"), 0) // Prints all jitted methods to the console
@@ -100,6 +101,7 @@ CONFIG_INTEGER(JitPInvokeCheckEnabled, W("JITPInvokeCheckEnabled"), 0)
 CONFIG_INTEGER(JitPInvokeEnabled, W("JITPInvokeEnabled"), 1)
 CONFIG_METHODSET(JitPrintInlinedMethods, W("JitPrintInlinedMethods"))
 CONFIG_METHODSET(JitPrintDevirtualizedMethods, W("JitPrintDevirtualizedMethods"))
+CONFIG_INTEGER(JitProfileChecks, W("JitProfileChecks"), 0) // 1 enable in dumps, 2 assert if issues found
 CONFIG_INTEGER(JitRequired, W("JITRequired"), -1)
 CONFIG_INTEGER(JitRoundFloat, W("JITRoundFloat"), DEFAULT_ROUND_LEVEL)
 CONFIG_INTEGER(JitStackAllocToLocalSize, W("JitStackAllocToLocalSize"), DEFAULT_MAX_LOCALLOC_TO_LOCAL_SIZE)
@@ -141,6 +143,7 @@ CONFIG_METHODSET(JitDebugBreak, W("JitDebugBreak"))
 CONFIG_METHODSET(JitDisasm, W("JitDisasm"))                  // Dumps disassembly for specified method
 CONFIG_STRING(JitDisasmAssemblies, W("JitDisasmAssemblies")) // Only show JitDisasm and related info for methods
                                                              // from this semicolon-delimited list of assemblies.
+CONFIG_INTEGER(JitDisasmWithGC, W("JitDisasmWithGC"), 0)     // Dump interleaved GC Info for any method disassembled.
 CONFIG_METHODSET(JitDump, W("JitDump"))                      // Dumps trees for specified method
 CONFIG_METHODSET(JitEHDump, W("JitEHDump"))                  // Dump the EH table for the method, as reported to the VM
 CONFIG_METHODSET(JitExclude, W("JitExclude"))
@@ -246,6 +249,8 @@ CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 0)
 
 CONFIG_INTEGER(EnableEHWriteThru, W("EnableEHWriteThru"), 0) // Enable the register allocator to support EH-write thru:
                                                              // partial enregistration of vars exposed on EH boundaries
+CONFIG_INTEGER(EnableMultiRegLocals, W("EnableMultiRegLocals"), 1) // Enable the enregistration of locals that are
+                                                                   // defined or used in a multireg context.
 
 // clang-format off
 
@@ -283,6 +288,20 @@ CONFIG_INTEGER(JitDisableSimdVN, W("JitDisableSimdVN"), 0) // Default 0, ValueNu
                                                            // If 2, then disable ValueNumbering of HW Intrinsic nodes
                                                            // If 3, disable both SIMD and HW Intrinsic nodes
 #endif                                                     // FEATURE_SIMD
+
+// Default 0, enable the CSE of Constants, including nearby offsets. (only for ARM64)
+// If 1, disable all the CSE of Constants
+// If 2, enable the CSE of Constants but don't combine with nearby offsets. (only for ARM64)
+// If 3, enable the CSE of Constants including nearby offsets. (all platforms)
+// If 4, enable the CSE of Constants but don't combine with nearby offsets. (all platforms)
+//
+CONFIG_INTEGER(JitConstCSE, W("JitConstCSE"), 0)
+
+#define CONST_CSE_ENABLE_ARM64 0
+#define CONST_CSE_DISABLE_ALL 1
+#define CONST_CSE_ENABLE_ARM64_NO_SHARING 2
+#define CONST_CSE_ENABLE_ALL 3
+#define CONST_CSE_ENABLE_ALL_NO_SHARING 4
 
 ///
 /// JIT
@@ -437,13 +456,8 @@ CONFIG_INTEGER(JitSaveFpLrWithCalleeSavedRegisters, W("JitSaveFpLrWithCalleeSave
 #endif // defined(TARGET_ARM64)
 #endif // DEBUG
 
-#if !FEATURE_MULTIREG_RET
-CONFIG_INTEGER(JitDoOldStructRetyping, W("JitDoOldStructRetyping"), 1) // Allow Jit to retype structs as primitive types
+CONFIG_INTEGER(JitDoOldStructRetyping, W("JitDoOldStructRetyping"), 0) // Allow Jit to retype structs as primitive types
                                                                        // when possible.
-#else                                                                  // FEATURE_MULTIREG_RET
-CONFIG_INTEGER(JitDoOldStructRetyping, W("JitDoOldStructRetyping"), 1) // Allow Jit to retype structs as primitive types
-                                                                       // when possible.
-#endif                                                                 // FEATURE_MULTIREG_RET
 
 #undef CONFIG_INTEGER
 #undef CONFIG_STRING

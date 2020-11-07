@@ -1,7 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
 //
+
+#include <stdlib.h>
+#include "pal_icushim_internal.h"
 
 #if defined(TARGET_UNIX)
 #include <dlfcn.h>
@@ -10,16 +12,14 @@
 #include <libloaderapi.h>
 #include <errhandlingapi.h>
 #endif
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
-#include "pal_icushim_internal.h"
 #include "pal_icushim.h"
 
 // Define pointers to all the used ICU functions
-#define PER_FUNCTION_BLOCK(fn, lib) __typeof(fn)* fn##_ptr;
+#define PER_FUNCTION_BLOCK(fn, lib) TYPEOF(fn)* fn##_ptr;
 FOR_ALL_ICU_FUNCTIONS
 #undef PER_FUNCTION_BLOCK
 
@@ -43,7 +43,7 @@ static void* libicui18n = NULL;
 #define PER_FUNCTION_BLOCK(fn, lib) \
     c_static_assert_msg((sizeof(#fn) + MaxICUVersionStringWithSuffixLength + 1) <= sizeof(symbolName), "The symbolName is too small for symbol " #fn); \
     sprintf(symbolName, #fn "%s", symbolVersion); \
-    fn##_ptr = (__typeof(fn)*)dlsym(lib, symbolName); \
+    fn##_ptr = (TYPEOF(fn)*)dlsym(lib, symbolName); \
     if (fn##_ptr == NULL) { fprintf(stderr, "Cannot get symbol %s from " #lib "\nError: %s\n", symbolName, dlerror()); abort(); }
 
 static int FindSymbolVersion(int majorVer, int minorVer, int subVer, char* symbolName, char* symbolVersion, char* suffix)
@@ -90,7 +90,7 @@ static int FindSymbolVersion(int majorVer, int minorVer, int subVer, char* symbo
 
 #define PER_FUNCTION_BLOCK(fn, lib) \
     sprintf_s(symbolName, SYMBOL_NAME_SIZE, #fn "%s", symbolVersion); \
-    fn##_ptr = (__typeof(fn)*)GetProcAddress((HMODULE)lib, symbolName); \
+    fn##_ptr = (TYPEOF(fn)*)GetProcAddress((HMODULE)lib, symbolName); \
     if (fn##_ptr == NULL) { fprintf(stderr, "Cannot get symbol %s from " #lib "\nError: %u\n", symbolName, GetLastError()); abort(); }
 
 static int FindICULibs()
@@ -431,10 +431,23 @@ void GlobalizationNative_InitICUFunctions(void* icuuc, void* icuin, const char* 
     char symbolVersion[MaxICUVersionStringWithSuffixLength + 1]="";
     char symbolSuffix[SYMBOL_CUSTOM_SUFFIX_SIZE]="";
 
+    if (strlen(version) > (size_t)MaxICUVersionStringLength)
+    {
+        fprintf(stderr, "The resolved version \"%s\" from System.Globalization.AppLocalIcu switch has to be < %zu chars long.\n", version, (size_t)MaxICUVersionStringLength);
+        abort();
+    }
+
     sscanf(version, "%d.%d.%d", &major, &minor, &build);
 
     if (suffix != NULL)
     {
+        size_t suffixAllowedSize = SYMBOL_CUSTOM_SUFFIX_SIZE - 2; // SYMBOL_CUSTOM_SUFFIX_SIZE considers `_` and `\0`.
+        if (strlen(suffix) > suffixAllowedSize)
+        {
+            fprintf(stderr, "The resolved suffix \"%s\" from System.Globalization.AppLocalIcu switch has to be < %zu chars long.\n", suffix, suffixAllowedSize);
+            abort();
+        }
+
         assert(strlen(suffix) + 1 <= SYMBOL_CUSTOM_SUFFIX_SIZE);
 
 #if defined(TARGET_WINDOWS)

@@ -1,21 +1,19 @@
-MONO_CONFIG=Debug
-MONO_ARCH=arm64
+MONO_CONFIG=Release
+MONO_ARCH=x64
 DOTNET := ../../../../.././dotnet.sh
 
-#export ANDROID_NDK_ROOT=/path/to/android/ndk
-#export ANDROID_SDK_ROOT=/path/to/android/sdk
-
-all: runtimepack bundle
-
-bundle: clean
-	$(DOTNET) build -c $(MONO_CONFIG) Program.csproj
-	$(DOTNET) msbuild /t:BuildAppBundle /p:Configuration=$(MONO_CONFIG) /p:TargetArchitecture=$(MONO_ARCH)
-
-deploy-launch: bundle
-	$(DOTNET) msbuild /t:ReinstallAndLaunch
+all: runtimepack run
 
 runtimepack:
-	../../../../.././build.sh -c $(MONO_CONFIG) -os Android -arch $(MONO_ARCH) -subset Mono+Libs /p:DisableCrossgen=true
+	../../../../.././build.sh Mono+Libs -os Android -arch $(MONO_ARCH) -c $(MONO_CONFIG)
+
+run:
+	$(DOTNET) publish \
+	/p:TargetArchitecture=$(MONO_ARCH) \
+	/p:TargetOS=Android \
+	/p:Configuration=$(MONO_CONFIG) \
+	/p:DeployAndRun=true \
+	/p:RunActivity=false
 
 clean:
-	rm -rf bin
+	rm -rf ../../../../../artifacts/bin/AndroidSampleApp

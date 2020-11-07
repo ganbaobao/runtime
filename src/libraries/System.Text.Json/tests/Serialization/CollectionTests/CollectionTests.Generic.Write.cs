@@ -1,6 +1,5 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -176,6 +175,34 @@ namespace System.Text.Json.Serialization.Tests
         }
 
         [Fact]
+        public static void WriteGenericStructIListWrapperT()
+        {
+            {
+                GenericStructIListWrapper<int> obj = new GenericStructIListWrapper<int>() { 10, 20 };
+                Assert.Equal("[10,20]", JsonSerializer.Serialize(obj));
+            }
+
+            {
+                GenericStructIListWrapper<int> obj = default;
+                Assert.Equal("[]", JsonSerializer.Serialize(obj));
+            }
+        }
+
+        [Fact]
+        public static void WriteGenericStructICollectionWrapperT()
+        {
+            {
+                GenericStructICollectionWrapper<int> obj = new GenericStructICollectionWrapper<int>() { 10, 20 };
+                Assert.Equal("[10,20]", JsonSerializer.Serialize(obj));
+            }
+
+            {
+                GenericStructICollectionWrapper<int> obj = default;
+                Assert.Equal("[]", JsonSerializer.Serialize(obj));
+            }
+        }
+
+        [Fact]
         public static void WriteGenericICollectionOfGenericICollection()
         {
             ICollection<ICollection<int>> input = new List<ICollection<int>>
@@ -339,6 +366,20 @@ namespace System.Text.Json.Serialization.Tests
 
             string json = JsonSerializer.Serialize(input);
             Assert.Equal("[1,2]", json);
+        }
+
+        [Fact]
+        public static void GenericStructISetWrapperT()
+        {
+            {
+                GenericStructISetWrapper<int> obj = new GenericStructISetWrapper<int>() { 10, 20 };
+                Assert.Equal("[10,20]", JsonSerializer.Serialize(obj));
+            }
+
+            {
+                GenericStructISetWrapper<int> obj = default;
+                Assert.Equal("[]", JsonSerializer.Serialize(obj));
+            }
         }
 
         [Fact]
@@ -751,117 +792,6 @@ namespace System.Text.Json.Serialization.Tests
         }
 
         [Fact]
-        public static void WritePrimitiveKeyValuePair()
-        {
-            KeyValuePair<string, int> input = new KeyValuePair<string, int>("Key", 123) ;
-
-            string json = JsonSerializer.Serialize(input);
-            Assert.Equal(@"{""Key"":""Key"",""Value"":123}", json);
-        }
-
-        [Fact]
-        public static void WriteListOfKeyValuePair()
-        {
-            List<KeyValuePair<string, int>> input = new List<KeyValuePair<string, int>>
-            {
-                new KeyValuePair<string, int>("123", 123),
-                new KeyValuePair<string, int>("456", 456)
-            };
-
-            string json = JsonSerializer.Serialize(input);
-            Assert.Equal(@"[{""Key"":""123"",""Value"":123},{""Key"":""456"",""Value"":456}]", json);
-        }
-
-        [Fact]
-        public static void WriteKeyValuePairOfList()
-        {
-            KeyValuePair<string, List<int>> input = new KeyValuePair<string, List<int>>("Key", new List<int> { 1, 2, 3 });
-
-            string json = JsonSerializer.Serialize(input);
-            Assert.Equal(@"{""Key"":""Key"",""Value"":[1,2,3]}", json);
-        }
-
-        [Fact]
-        public static void WriteKeyValuePairOfKeyValuePair()
-        {
-            KeyValuePair<string, KeyValuePair<string, int>> input = new KeyValuePair<string, KeyValuePair<string, int>>(
-                "Key", new KeyValuePair<string, int>("Key", 1));
-
-            string json = JsonSerializer.Serialize(input);
-            Assert.Equal(@"{""Key"":""Key"",""Value"":{""Key"":""Key"",""Value"":1}}", json);
-        }
-
-        [Fact]
-        public static void WriteKeyValuePairWithNullValues()
-        {
-            {
-                KeyValuePair<string, string> kvp = new KeyValuePair<string, string>("key", null);
-                Assert.Equal(@"{""Key"":""key"",""Value"":null}", JsonSerializer.Serialize(kvp));
-            }
-
-            {
-                KeyValuePair<string, object> kvp = new KeyValuePair<string, object>("key", null);
-                Assert.Equal(@"{""Key"":""key"",""Value"":null}", JsonSerializer.Serialize(kvp));
-            }
-
-            {
-                KeyValuePair<string, SimpleClassWithKeyValuePairs> kvp = new KeyValuePair<string, SimpleClassWithKeyValuePairs>("key", null);
-                Assert.Equal(@"{""Key"":""key"",""Value"":null}", JsonSerializer.Serialize(kvp));
-            }
-
-            {
-                KeyValuePair<string, KeyValuePair<string, string>> kvp = new KeyValuePair<string, KeyValuePair<string, string>>("key", new KeyValuePair<string, string>("key", null));
-                Assert.Equal(@"{""Key"":""key"",""Value"":{""Key"":""key"",""Value"":null}}", JsonSerializer.Serialize(kvp));
-            }
-
-            {
-                KeyValuePair<string, KeyValuePair<string, object>> kvp = new KeyValuePair<string, KeyValuePair<string, object>>("key", new KeyValuePair<string, object>("key", null));
-                Assert.Equal(@"{""Key"":""key"",""Value"":{""Key"":""key"",""Value"":null}}", JsonSerializer.Serialize(kvp));
-            }
-
-            {
-                KeyValuePair<string, KeyValuePair<string, SimpleClassWithKeyValuePairs>> kvp = new KeyValuePair<string, KeyValuePair<string, SimpleClassWithKeyValuePairs>>("key", new KeyValuePair<string, SimpleClassWithKeyValuePairs>("key", null));
-                Assert.Equal(@"{""Key"":""key"",""Value"":{""Key"":""key"",""Value"":null}}", JsonSerializer.Serialize(kvp));
-            }
-        }
-
-        // https://github.com/dotnet/runtime/issues/30388
-        [Fact]
-        public static void WriteClassWithNullKeyValuePairValues_NullWrittenAsEmptyObject()
-        {
-            var value = new SimpleClassWithKeyValuePairs()
-            {
-                KvpWStrVal = new KeyValuePair<string, string>("key", null),
-                KvpWObjVal = new KeyValuePair<string, object>("key", null),
-                KvpWClassVal = new KeyValuePair<string, SimpleClassWithKeyValuePairs>("key", null),
-                KvpWStrKvpVal = new KeyValuePair<string, KeyValuePair<string, string>>("key", new KeyValuePair<string, string>("key", null)),
-                KvpWObjKvpVal = new KeyValuePair<string, KeyValuePair<string, object>>("key", new KeyValuePair<string, object>("key", null)),
-                KvpWClassKvpVal = new KeyValuePair<string, KeyValuePair<string, SimpleClassWithKeyValuePairs>>("key", new KeyValuePair<string, SimpleClassWithKeyValuePairs>("key", null)),
-            };
-
-            string result = JsonSerializer.Serialize(value);
-
-            // Roundtrip to ensure serialize was correct.
-            value = JsonSerializer.Deserialize<SimpleClassWithKeyValuePairs>(result);
-            Assert.Equal("key", value.KvpWStrVal.Key);
-            Assert.Equal("key", value.KvpWObjVal.Key);
-            Assert.Equal("key", value.KvpWClassVal.Key);
-            Assert.Equal("key", value.KvpWStrKvpVal.Key);
-            Assert.Equal("key", value.KvpWObjKvpVal.Key);
-            Assert.Equal("key", value.KvpWClassKvpVal.Key);
-            Assert.Equal("key", value.KvpWStrKvpVal.Value.Key);
-            Assert.Equal("key", value.KvpWObjKvpVal.Value.Key);
-            Assert.Equal("key", value.KvpWClassKvpVal.Value.Key);
-
-            Assert.Null(value.KvpWStrVal.Value);
-            Assert.Null(value.KvpWObjVal.Value);
-            Assert.Null(value.KvpWClassVal.Value);
-            Assert.Null(value.KvpWStrKvpVal.Value.Value);
-            Assert.Null(value.KvpWObjKvpVal.Value.Value);
-            Assert.Null(value.KvpWClassKvpVal.Value.Value);
-        }
-
-        [Fact]
         public static void WriteGenericCollectionWrappers()
         {
             SimpleTestClassWithGenericCollectionWrappers obj1 = new SimpleTestClassWithGenericCollectionWrappers();
@@ -890,6 +820,56 @@ namespace System.Text.Json.Serialization.Tests
 
             Assert.Equal(SimpleTestClassWithStringToStringIReadOnlyDictionaryWrapper.s_json.StripWhitespace(), JsonSerializer.Serialize(obj5));
             Assert.Equal(SimpleTestClassWithStringToStringIReadOnlyDictionaryWrapper.s_json.StripWhitespace(), JsonSerializer.Serialize<object>(obj5));
+        }
+
+        [Fact]
+        public static void WriteSimpleTestClassWithGenericStructCollectionWrappers()
+        {
+            {
+                SimpleTestClassWithGenericStructCollectionWrappers obj = new SimpleTestClassWithGenericStructCollectionWrappers();
+                obj.Initialize();
+                Assert.Equal(SimpleTestClassWithGenericStructCollectionWrappers.s_json.StripWhitespace(), JsonSerializer.Serialize(obj));
+            }
+
+            {
+                SimpleTestClassWithGenericStructCollectionWrappers obj = new SimpleTestClassWithGenericStructCollectionWrappers()
+                {
+                    List = default,
+                    Dictionary = default,
+                    Collection = default,
+                    Set = default
+                };
+                string json =
+                    @"{" +
+                    @"""List"" : []," +
+                    @"""Collection"" : []," +
+                    @"""Set"" : []," +
+                    @"""Dictionary"" : {}" +
+                    @"}";
+                Assert.Equal(json.StripWhitespace(), JsonSerializer.Serialize(obj));
+            }
+        }
+
+        [Fact]
+        public static void WriteSimpleTestStructWithNullableGenericStructCollectionWrappers()
+        {
+            {
+                SimpleTestStructWithNullableGenericStructCollectionWrappers obj = new SimpleTestStructWithNullableGenericStructCollectionWrappers();
+                obj.Initialize();
+                Assert.Equal(SimpleTestStructWithNullableGenericStructCollectionWrappers.s_json.StripWhitespace(), JsonSerializer.Serialize(obj));
+            }
+
+            {
+                SimpleTestStructWithNullableGenericStructCollectionWrappers obj = new SimpleTestStructWithNullableGenericStructCollectionWrappers();
+                string json =
+                    @"{" +
+                    @"""List"" : null," +
+                    @"""Collection"" : null," +
+                    @"""Set"" : null," +
+                    @"""Dictionary"" : null" +
+                    @"}";
+                Assert.Equal(json.StripWhitespace(), JsonSerializer.Serialize(obj));
+            }
         }
 
         [Fact]

@@ -1,6 +1,5 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
 
 #include "jitpch.h"
 #ifdef _MSC_VER
@@ -369,17 +368,14 @@ void DefaultPolicy::NoteBool(InlineObservation obs, bool value)
                 // the candidate IL size during the inlining pass it
                 // "reestablishes" candidacy rather than alters
                 // candidacy ... so instead we bail out here.
+                //
+                bool overBudget = this->BudgetCheck();
 
-                if (!m_IsPrejitRoot)
+                if (overBudget)
                 {
-                    InlineStrategy* strategy   = m_RootCompiler->m_inlineStrategy;
-                    bool            overBudget = strategy->BudgetCheck(m_CodeSize);
-                    if (overBudget)
-                    {
-                        SetFailure(InlineObservation::CALLSITE_OVER_BUDGET);
-                    }
+                    SetFailure(InlineObservation::CALLSITE_OVER_BUDGET);
+                    return;
                 }
-
                 break;
             }
 
@@ -441,6 +437,53 @@ void DefaultPolicy::NoteBool(InlineObservation obs, bool value)
     {
         NoteInternal(obs);
     }
+}
+
+//------------------------------------------------------------------------
+// BudgetCheck: see if this inline would exceed the current budget
+//
+// Returns:
+//   True if inline would exceed the budget.
+//
+bool DefaultPolicy::BudgetCheck() const
+{
+    // Only relevant if we're actually inlining.
+    //
+    if (m_IsPrejitRoot)
+    {
+        return false;
+    }
+
+    // The strategy tracks the amout of inlining done so far,
+    // so it performs the actual check.
+    //
+    InlineStrategy* strategy   = m_RootCompiler->m_inlineStrategy;
+    const bool      overBudget = strategy->BudgetCheck(m_CodeSize);
+
+    if (overBudget)
+    {
+        // If the candidate is a forceinline and the callsite is
+        // not too deep, allow the inline even if it goes over budget.
+        //
+        // For now, "not too deep" means a top-level inline. Note
+        // depth 0 is used for the root method, so inline candidate depth
+        // will be 1 or more.
+        //
+        assert(m_IsForceInlineKnown);
+        assert(m_CallsiteDepth > 0);
+        const bool allowOverBudget = m_IsForceInline && (m_CallsiteDepth == 1);
+
+        if (allowOverBudget)
+        {
+            JITDUMP("Allowing over-budget top-level forceinline\n");
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 //------------------------------------------------------------------------
@@ -531,9 +574,9 @@ void DefaultPolicy::NoteInt(InlineObservation obs, int value)
 
         case InlineObservation::CALLSITE_DEPTH:
         {
-            unsigned depth = static_cast<unsigned>(value);
+            m_CallsiteDepth = static_cast<unsigned>(value);
 
-            if (depth > m_RootCompiler->m_inlineStrategy->GetMaxInlineDepth())
+            if (m_CallsiteDepth > m_RootCompiler->m_inlineStrategy->GetMaxInlineDepth())
             {
                 SetFailure(InlineObservation::CALLSITE_IS_TOO_DEEP);
             }
@@ -994,15 +1037,11 @@ void RandomPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
     assert(m_Observation == InlineObservation::CALLEE_IS_DISCRETIONARY_INLINE);
 
     // Budget check.
-    if (!m_IsPrejitRoot)
+    const bool overBudget = this->BudgetCheck();
+    if (overBudget)
     {
-        InlineStrategy* strategy   = m_RootCompiler->m_inlineStrategy;
-        bool            overBudget = strategy->BudgetCheck(m_CodeSize);
-        if (overBudget)
-        {
-            SetFailure(InlineObservation::CALLSITE_OVER_BUDGET);
-            return;
-        }
+        SetFailure(InlineObservation::CALLSITE_OVER_BUDGET);
+        return;
     }
 
     // If we're also dumping inline data, make additional observations
@@ -1110,7 +1149,6 @@ void RandomPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
 // clang-format off
 DiscretionaryPolicy::DiscretionaryPolicy(Compiler* compiler, bool isPrejitRoot)
     : DefaultPolicy(compiler, isPrejitRoot)
-    , m_Depth(0)
     , m_BlockCount(0)
     , m_Maxstack(0)
     , m_ArgCount(0)
@@ -1251,10 +1289,6 @@ void DiscretionaryPolicy::NoteInt(InlineObservation obs, int value)
 
         case InlineObservation::CALLEE_NUMBER_OF_BASIC_BLOCKS:
             m_BlockCount = value;
-            break;
-
-        case InlineObservation::CALLSITE_DEPTH:
-            m_Depth = value;
             break;
 
         case InlineObservation::CALLSITE_WEIGHT:
@@ -1523,6 +1557,7 @@ void DiscretionaryPolicy::ComputeOpcodeBin(OPCODE opcode)
 
         case CEE_RET:
             m_ReturnCount++;
+            break;
 
         default:
             break;
@@ -1687,7 +1722,7 @@ void DiscretionaryPolicy::MethodInfoObservations(CORINFO_METHOD_INFO* methodInfo
 //   0.100 * m_CalleeNativeSizeEstimate +
 //  -0.100 * m_CallsiteNativeSizeEstimate
 //
-// On the inlines in CoreCLR's mscorlib, release windows x64, this
+// On the inlines in CoreCLR's CoreLib, release windows x64, this
 // yields scores of R=0.42, MSE=228, and MAE=7.25.
 //
 // This estimate can be improved slighly by refitting, resulting in
@@ -1791,7 +1826,6 @@ void DiscretionaryPolicy::DumpSchema(FILE* file) const
     fprintf(file, ",CallsiteFrequency");
     fprintf(file, ",InstructionCount");
     fprintf(file, ",LoadStoreCount");
-    fprintf(file, ",Depth");
     fprintf(file, ",BlockCount");
     fprintf(file, ",Maxstack");
     fprintf(file, ",ArgCount");
@@ -1858,6 +1892,7 @@ void DiscretionaryPolicy::DumpSchema(FILE* file) const
     fprintf(file, ",CallerHasNewObj");
     fprintf(file, ",CalleeDoesNotReturn");
     fprintf(file, ",CalleeHasGCStruct");
+    fprintf(file, ",CallsiteDepth");
 }
 
 //------------------------------------------------------------------------
@@ -1873,7 +1908,6 @@ void DiscretionaryPolicy::DumpData(FILE* file) const
     fprintf(file, ",%u", m_CallsiteFrequency);
     fprintf(file, ",%u", m_InstructionCount);
     fprintf(file, ",%u", m_LoadStoreCount);
-    fprintf(file, ",%u", m_Depth);
     fprintf(file, ",%u", m_BlockCount);
     fprintf(file, ",%u", m_Maxstack);
     fprintf(file, ",%u", m_ArgCount);
@@ -1940,6 +1974,7 @@ void DiscretionaryPolicy::DumpData(FILE* file) const
     fprintf(file, ",%u", m_CallerHasNewObj ? 1 : 0);
     fprintf(file, ",%u", m_IsNoReturn ? 1 : 0);
     fprintf(file, ",%u", m_CalleeHasGCStruct ? 1 : 0);
+    fprintf(file, ",%u", m_CallsiteDepth);
 }
 
 #endif // defined(DEBUG) || defined(INLINE_DATA)
@@ -2013,7 +2048,7 @@ void ModelPolicy::NoteInt(InlineObservation obs, int value)
     {
         unsigned depthLimit = m_RootCompiler->m_inlineStrategy->GetMaxInlineDepth();
 
-        if (m_Depth > depthLimit)
+        if (m_CallsiteDepth > depthLimit)
         {
             SetFailure(InlineObservation::CALLSITE_IS_TOO_DEEP);
             return;
@@ -2167,6 +2202,19 @@ FullPolicy::FullPolicy(Compiler* compiler, bool isPrejitRoot) : DiscretionaryPol
 }
 
 //------------------------------------------------------------------------
+// BudgetCheck: see if this inline would exceed the current budget
+//
+// Returns:
+//   True if inline would exceed the budget.
+//
+bool FullPolicy::BudgetCheck() const
+{
+    // There are no budget restrictions for the full policy.
+    //
+    return false;
+}
+
+//------------------------------------------------------------------------
 // DetermineProfitability: determine if this inline is profitable
 //
 // Arguments:
@@ -2178,7 +2226,7 @@ void FullPolicy::DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
 
     unsigned depthLimit = m_RootCompiler->m_inlineStrategy->GetMaxInlineDepth();
 
-    if (m_Depth > depthLimit)
+    if (m_CallsiteDepth > depthLimit)
     {
         SetFailure(InlineObservation::CALLSITE_IS_TOO_DEEP);
         return;
@@ -2468,7 +2516,7 @@ bool ReplayPolicy::FindContext(InlineContext* context)
     //
     // Token and Hash we're looking for.
     mdMethodDef contextToken  = m_RootCompiler->info.compCompHnd->getMethodDefFromMethod(context->GetCallee());
-    unsigned    contextHash   = m_RootCompiler->info.compCompHnd->getMethodHash(context->GetCallee());
+    unsigned    contextHash   = m_RootCompiler->compMethodHash(context->GetCallee());
     unsigned    contextOffset = (unsigned)context->GetOffset();
 
     return FindInline(contextToken, contextHash, contextOffset);
@@ -2652,7 +2700,7 @@ bool ReplayPolicy::FindInline(CORINFO_METHOD_HANDLE callee)
 {
     // Token and Hash we're looking for
     mdMethodDef calleeToken = m_RootCompiler->info.compCompHnd->getMethodDefFromMethod(callee);
-    unsigned    calleeHash  = m_RootCompiler->info.compCompHnd->getMethodHash(callee);
+    unsigned    calleeHash  = m_RootCompiler->compMethodHash(callee);
 
     // Abstract this or just pass through raw bits
     // See matching code in xml writer

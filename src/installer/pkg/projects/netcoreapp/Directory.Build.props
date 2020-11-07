@@ -6,7 +6,7 @@
     Installer uses Unix when applicable, but others go straight to Linux.
   -->
   <PropertyGroup>
-    <CoreCLRTargetOS Condition="'$(TargetsWindows)' == 'true'">Windows_NT</CoreCLRTargetOS>
+    <CoreCLRTargetOS Condition="'$(TargetsWindows)' == 'true'">windows</CoreCLRTargetOS>
     <CoreCLRTargetOS Condition="'$(TargetsLinux)' == 'true'">Linux</CoreCLRTargetOS>
     <CoreCLRTargetOS Condition="'$(TargetsOSX)' == 'true'">OSX</CoreCLRTargetOS>
     <CoreCLRTargetOS Condition="'$(TargetsiOS)' == 'true'">iOS</CoreCLRTargetOS>
@@ -14,6 +14,9 @@
     <CoreCLRTargetOS Condition="'$(TargetsAndroid)' == 'true'">Android</CoreCLRTargetOS>
     <CoreCLRTargetOS Condition="'$(TargetsBrowser)' == 'true'">Browser</CoreCLRTargetOS>
     <CoreCLRTargetOS Condition="'$(TargetsFreeBSD)' == 'true'">FreeBSD</CoreCLRTargetOS>
+    <CoreCLRTargetOS Condition="'$(TargetsNetBSD)' == 'true'">NetBSD</CoreCLRTargetOS>
+    <CoreCLRTargetOS Condition="'$(TargetsIllumos)' == 'true'">illumos</CoreCLRTargetOS>
+    <CoreCLRTargetOS Condition="'$(TargetsSolaris)' == 'true'">Solaris</CoreCLRTargetOS>
     <LibrariesTargetOS>$(CoreCLRTargetOS)</LibrariesTargetOS>
   </PropertyGroup>
 

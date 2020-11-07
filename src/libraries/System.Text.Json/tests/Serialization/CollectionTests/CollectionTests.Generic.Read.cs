@@ -1,6 +1,5 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -256,6 +255,66 @@ namespace System.Text.Json.Serialization.Tests
 
             result2 = JsonSerializer.Deserialize<StringIListWrapper>(@"[]");
             Assert.Equal(0, result2.Count());
+        }
+
+        [Fact]
+        public static void ReadGenericStructIList()
+        {
+            string json = "[10,20,30]";
+            var wrapper = JsonSerializer.Deserialize<GenericStructIListWrapper<int>>(json);
+            Assert.Equal(3, wrapper.Count);
+            Assert.Equal(10, wrapper[0]);
+            Assert.Equal(20, wrapper[1]);
+            Assert.Equal(30, wrapper[2]);
+        }
+
+        [Fact]
+        public static void ReadNullableGenericStructIList()
+        {
+            string json = "[10,20,30]";
+            var wrapper = JsonSerializer.Deserialize<GenericStructIListWrapper<int>?>(json);
+            Assert.True(wrapper.HasValue);
+            Assert.Equal(3, wrapper.Value.Count);
+            Assert.Equal(10, wrapper.Value[0]);
+            Assert.Equal(20, wrapper.Value[1]);
+            Assert.Equal(30, wrapper.Value[2]);
+        }
+
+        [Fact]
+        public static void ReadNullableGenericStructIListWithNullJson()
+        {
+            var wrapper = JsonSerializer.Deserialize<GenericStructIListWrapper<int>?>("null");
+            Assert.False(wrapper.HasValue);
+        }
+
+        [Fact]
+        public static void ReadGenericStructICollection()
+        {
+            string json = "[10,20,30]";
+            var wrapper = JsonSerializer.Deserialize<GenericStructICollectionWrapper<int>>(json);
+            Assert.Equal(3, wrapper.Count);
+            Assert.Equal(10, wrapper.ElementAt(0));
+            Assert.Equal(20, wrapper.ElementAt(1));
+            Assert.Equal(30, wrapper.ElementAt(2));
+        }
+
+        [Fact]
+        public static void ReadNullableGenericStructICollection()
+        {
+            string json = "[10,20,30]";
+            var wrapper = JsonSerializer.Deserialize<GenericStructICollectionWrapper<int>?>(json);
+            Assert.True(wrapper.HasValue);
+            Assert.Equal(3, wrapper.Value.Count);
+            Assert.Equal(10, wrapper.Value.ElementAt(0));
+            Assert.Equal(20, wrapper.Value.ElementAt(1));
+            Assert.Equal(30, wrapper.Value.ElementAt(2));
+        }
+
+        [Fact]
+        public static void ReadNullableGenericStructICollectionWithNullJson()
+        {
+            var wrapper = JsonSerializer.Deserialize<GenericStructICollectionWrapper<int>?>("null");
+            Assert.False(wrapper.HasValue);
         }
 
         [Fact]
@@ -523,6 +582,36 @@ namespace System.Text.Json.Serialization.Tests
                 Assert.Equal(new HashSet<string> { "3", "4" }, (ISet<string>)result.First());
                 Assert.Equal(new HashSet<string> { "1", "2" }, (ISet<string>)result.Last());
             }
+        }
+
+        [Fact]
+        public static void ReadGenericStructISet()
+        {
+            string json = "[10, 20, 30]";
+            var wrapper = JsonSerializer.Deserialize<GenericStructISetWrapper<int>>(json);
+            Assert.Equal(3, wrapper.Count);
+            Assert.Equal(10, wrapper.ElementAt(0));
+            Assert.Equal(20, wrapper.ElementAt(1));
+            Assert.Equal(30, wrapper.ElementAt(2));
+        }
+
+        [Fact]
+        public static void ReadNullableGenericStructISet()
+        {
+            string json = "[10, 20, 30]";
+            var wrapper = JsonSerializer.Deserialize<GenericStructISetWrapper<int>?>(json);
+            Assert.True(wrapper.HasValue);
+            Assert.Equal(3, wrapper.Value.Count);
+            Assert.Equal(10, wrapper.Value.ElementAt(0));
+            Assert.Equal(20, wrapper.Value.ElementAt(1));
+            Assert.Equal(30, wrapper.Value.ElementAt(2));
+        }
+
+        [Fact]
+        public static void ReadNullableGenericStructISetWithNullJson()
+        {
+            var wrapper = JsonSerializer.Deserialize<GenericStructISetWrapper<int>?>("null");
+            Assert.False(wrapper.HasValue);
         }
 
         [Fact]
@@ -963,156 +1052,43 @@ namespace System.Text.Json.Serialization.Tests
         }
 
         [Fact]
-        public static void ReadSimpleKeyValuePairFail()
+        public static void ReadClass_WithGenericStructCollectionWrapper_NullJson_Throws()
         {
-            // Invalid form: no Value
-            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<KeyValuePair<string, int>>(@"{""Key"": 123}"));
-
-            // Invalid form: extra property
-            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<KeyValuePair<string, int>>(@"{""Key"": ""Key"", ""Value"": 123, ""Value2"": 456}"));
-
-            // Invalid form: does not contain both Key and Value properties
-            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<KeyValuePair<string, int>>(@"{""Key"": ""Key"", ""Val"": 123"));
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ClassWithGenericStructIListWrapper>(@"{ ""List"": null }"));
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ClassWithGenericStructICollectionWrapper>(@"{ ""Collection"": null }"));
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ClassWithGenericStructIDictionaryWrapper>(@"{ ""Dictionary"": null }"));
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ClassWithGenericStructISetWrapper>(@"{ ""Set"": null }"));
         }
 
         [Fact]
-        public static void ReadListOfKeyValuePair()
+        public static void ReadSimpleTestClass_GenericStructCollectionWrappers()
         {
-            List<KeyValuePair<string, int>> input = JsonSerializer.Deserialize<List<KeyValuePair<string, int>>>(@"[{""Key"": ""123"", ""Value"": 123},{""Key"": ""456"", ""Value"": 456}]");
-
-            Assert.Equal(2, input.Count);
-            Assert.Equal("123", input[0].Key);
-            Assert.Equal(123, input[0].Value);
-            Assert.Equal("456", input[1].Key);
-            Assert.Equal(456, input[1].Value);
+            SimpleTestClassWithGenericStructCollectionWrappers obj = JsonSerializer.Deserialize<SimpleTestClassWithGenericStructCollectionWrappers>(SimpleTestClassWithGenericStructCollectionWrappers.s_json);
+            obj.Verify();
         }
 
         [Fact]
-        public static void ReadKeyValuePairOfList()
-        {
-            KeyValuePair<string, List<int>> input = JsonSerializer.Deserialize<KeyValuePair<string, List<int>>>(@"{""Key"":""Key"", ""Value"":[1, 2, 3]}");
-
-            Assert.Equal("Key", input.Key);
-            Assert.Equal(3, input.Value.Count);
-            Assert.Equal(1, input.Value[0]);
-            Assert.Equal(2, input.Value[1]);
-            Assert.Equal(3, input.Value[2]);
-        }
-
-        [Theory]
-        [InlineData(@"{""Key"":""Key"", ""Value"":{""Key"":1, ""Value"":2}}")]
-        [InlineData(@"{""Key"":""Key"", ""Value"":{""Value"":2, ""Key"":1}}")]
-        [InlineData(@"{""Value"":{""Key"":1, ""Value"":2}, ""Key"":""Key""}")]
-        [InlineData(@"{""Value"":{""Value"":2, ""Key"":1}, ""Key"":""Key""}")]
-        public static void ReadKeyValuePairOfKeyValuePair(string json)
-        {
-            KeyValuePair<string, KeyValuePair<int, int>> input = JsonSerializer.Deserialize<KeyValuePair<string, KeyValuePair<int, int>>>(json);
-
-            Assert.Equal("Key", input.Key);
-            Assert.Equal(1, input.Value.Key);
-            Assert.Equal(2, input.Value.Value);
-        }
-
-        [Fact]
-        public static void ReadKeyValuePairWithNullValues()
+        public static void ReadSimpleTestStruct_NullableGenericStructCollectionWrappers()
         {
             {
-                KeyValuePair<string, string> kvp = JsonSerializer.Deserialize<KeyValuePair<string, string>>(@"{""Key"":""key"",""Value"":null}");
-                Assert.Equal("key", kvp.Key);
-                Assert.Null(kvp.Value);
+                SimpleTestStructWithNullableGenericStructCollectionWrappers obj = JsonSerializer.Deserialize<SimpleTestStructWithNullableGenericStructCollectionWrappers>(SimpleTestStructWithNullableGenericStructCollectionWrappers.s_json);
+                obj.Verify();
             }
 
             {
-                KeyValuePair<string, object> kvp = JsonSerializer.Deserialize<KeyValuePair<string, object>>(@"{""Key"":""key"",""Value"":null}");
-                Assert.Equal("key", kvp.Key);
-                Assert.Null(kvp.Value);
+                string json =
+                        @"{" +
+                        @"""List"" : null," +
+                        @"""Collection"" : null," +
+                        @"""Set"" : null," +
+                        @"""Dictionary"" : null" +
+                        @"}";
+                SimpleTestStructWithNullableGenericStructCollectionWrappers obj = JsonSerializer.Deserialize<SimpleTestStructWithNullableGenericStructCollectionWrappers>(json);
+                Assert.False(obj.List.HasValue);
+                Assert.False(obj.Collection.HasValue);
+                Assert.False(obj.Set.HasValue);
+                Assert.False(obj.Dictionary.HasValue);
             }
-
-            {
-                KeyValuePair<string, SimpleClassWithKeyValuePairs> kvp = JsonSerializer.Deserialize<KeyValuePair<string, SimpleClassWithKeyValuePairs>>(@"{""Key"":""key"",""Value"":null}");
-                Assert.Equal("key", kvp.Key);
-                Assert.Null(kvp.Value);
-            }
-
-            {
-                KeyValuePair<string, KeyValuePair<string, string>> kvp = JsonSerializer.Deserialize<KeyValuePair<string, KeyValuePair<string, string>>>(@"{""Key"":""key"",""Value"":{""Key"":""key"",""Value"":null}}");
-                Assert.Equal("key", kvp.Key);
-                Assert.Equal("key", kvp.Value.Key);
-                Assert.Null(kvp.Value.Value);
-            }
-
-            {
-                KeyValuePair<string, KeyValuePair<string, object>> kvp = JsonSerializer.Deserialize<KeyValuePair<string, KeyValuePair<string, object>>>(@"{""Key"":""key"",""Value"":{""Key"":""key"",""Value"":null}}");
-                Assert.Equal("key", kvp.Key);
-                Assert.Equal("key", kvp.Value.Key);
-                Assert.Null(kvp.Value.Value);
-            }
-
-            {
-                KeyValuePair<string, KeyValuePair<string, SimpleClassWithKeyValuePairs>> kvp = JsonSerializer.Deserialize<KeyValuePair<string, KeyValuePair<string, SimpleClassWithKeyValuePairs>>>(@"{""Key"":""key"",""Value"":{""Key"":""key"",""Value"":null}}");
-                Assert.Equal("key", kvp.Key);
-                Assert.Equal("key", kvp.Value.Key);
-                Assert.Null(kvp.Value.Value);
-            }
-        }
-
-        [Fact]
-        public static void ReadClassWithNullKeyValuePairValues()
-        {
-            string json =
-                    @"{" +
-                        @"""KvpWStrVal"":{" +
-                            @"""Key"":""key""," +
-                            @"""Value"":null" +
-                        @"}," +
-                        @"""KvpWObjVal"":{" +
-                            @"""Key"":""key""," +
-                            @"""Value"":null" +
-                        @"}," +
-                        @"""KvpWClassVal"":{" +
-                            @"""Key"":""key""," +
-                            @"""Value"":null" +
-                        @"}," +
-                        @"""KvpWStrKvpVal"":{" +
-                            @"""Key"":""key""," +
-                            @"""Value"":{" +
-                                @"""Key"":""key""," +
-                                @"""Value"":null" +
-                            @"}" +
-                        @"}," +
-                        @"""KvpWObjKvpVal"":{" +
-                            @"""Key"":""key""," +
-                            @"""Value"":{" +
-                                @"""Key"":""key""," +
-                                @"""Value"":null" +
-                            @"}" +
-                        @"}," +
-                        @"""KvpWClassKvpVal"":{" +
-                            @"""Key"":""key""," +
-                            @"""Value"":{" +
-                                @"""Key"":""key""," +
-                                @"""Value"":null" +
-                            @"}" +
-                        @"}" +
-                    @"}";
-            SimpleClassWithKeyValuePairs obj = JsonSerializer.Deserialize<SimpleClassWithKeyValuePairs>(json);
-
-            Assert.Equal("key", obj.KvpWStrVal.Key);
-            Assert.Equal("key", obj.KvpWObjVal.Key);
-            Assert.Equal("key", obj.KvpWClassVal.Key);
-            Assert.Equal("key", obj.KvpWStrKvpVal.Key);
-            Assert.Equal("key", obj.KvpWObjKvpVal.Key);
-            Assert.Equal("key", obj.KvpWClassKvpVal.Key);
-            Assert.Equal("key", obj.KvpWStrKvpVal.Value.Key);
-            Assert.Equal("key", obj.KvpWObjKvpVal.Value.Key);
-            Assert.Equal("key", obj.KvpWClassKvpVal.Value.Key);
-
-            Assert.Null(obj.KvpWStrVal.Value);
-            Assert.Null(obj.KvpWObjVal.Value);
-            Assert.Null(obj.KvpWClassVal.Value);
-            Assert.Null(obj.KvpWStrKvpVal.Value.Value);
-            Assert.Null(obj.KvpWObjKvpVal.Value.Value);
-            Assert.Null(obj.KvpWClassKvpVal.Value.Value);
         }
 
         [Fact]
@@ -1301,10 +1277,10 @@ namespace System.Text.Json.Serialization.Tests
         }
 
         [Fact]
-        public static void IReadOnlyDictionary_NonStringKey_NotSupported()
+        public static void IReadOnlyDictionary_NotSupportedKey()
         {
-            Assert.Throws<NotSupportedException>(() => JsonSerializer.Deserialize<IReadOnlyDictionary<int, int>>(""));
-            Assert.Throws<NotSupportedException>(() => JsonSerializer.Serialize(new GenericIReadOnlyDictionaryWrapper<int, int>()));
+            Assert.Throws<NotSupportedException>(() => JsonSerializer.Deserialize<IReadOnlyDictionary<Uri, int>>(@"{""http://foo"":1}"));
+            Assert.Throws<NotSupportedException>(() => JsonSerializer.Serialize(new GenericIReadOnlyDictionaryWrapper<Uri, int>(new Dictionary<Uri, int> { { new Uri("http://foo"), 1 } })));
         }
     }
 }
